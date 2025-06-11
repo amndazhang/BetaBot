@@ -2,11 +2,11 @@ import enum
 from collections import namedtuple
 
 class Player(enum.Enum):
-    black = 0
-    white = 1
+    black = 1
+    white = 2
 
     @property
-    def opp(self):
+    def other(self):
         return Player.black if self == Player.white else Player.white
     
 class Point(namedtuple('Point', 'row col')):
