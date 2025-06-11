@@ -1,5 +1,6 @@
 from dlgo import agent
-from dlgo import goboard
+from dlgo.agent.naive import RandomBot
+from dlgo import goboard_slow as goboard
 from dlgo import gotypes
 from dlgo.utils import print_board, print_move
 import time
