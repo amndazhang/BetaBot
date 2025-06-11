@@ -1,7 +1,6 @@
 import copy
 from dlgo.gotypes import Player
-
-# non Zobrist hashing version
+from dlgo import zobrist
 
 __all__ = [
     'Board',
@@ -12,14 +11,16 @@ __all__ = [
 class GoString():
     def __init__(self, color, stones, liberties):
         self.color = color
-        self.stones = set(stones)
-        self.liberties = set(liberties)
+        self.stones = frozenset(stones)
+        self.liberties = frozenset(liberties)
 
-    def remove_liberty(self, point):
-        self.liberties.remove(point)
+    def without_liberty(self, point):
+        new_libs = self.liberties - set([point])
+        return GoString(self.color, self.stones, new_libs)
 
-    def add_liberty(self, point):
-        self.liberties.add(point)
+    def with_liberty(self, point):
+        new_libs = self.liberties | set([point])
+        return GoString(self.color, self.stones, new_libs)
 
     def merged_with(self, go_string):
         assert go_string.color == self.color
@@ -44,6 +45,7 @@ class Board():
         self.num_rows = num_rows
         self.num_cols = num_cols
         self._grid = {}
+        self._hash = zobrist.EMPTY_BOARD
 
     def place_stone(self, color, point):
         assert self.is_on_grid(point)
@@ -72,10 +74,13 @@ class Board():
         for new_point in new_string.stones:
             self._grid[new_point] = new_string
         
+        # apply hash
+        self._hash ^= zobrist.HASH_CODE[point, color]
+
         # opp color neighbors
         for opp_color_string in adjacent_opp_color:  # reduce liberty of adj opp color string
             if point in opp_color_string.liberties:  # Only remove if the liberty exists
-                opp_color_string.remove_liberty(point)
+                opp_color_string.without_liberty(point)
             if opp_color_string.num_liberties == 0:  # remove string if zero liberties
                 self._remove_string(opp_color_string)
 
@@ -89,6 +94,9 @@ class Board():
                 if neighbor_string is not string: # add liberty if neighbor not in string
                     neighbor_string.add_liberty(point)
             self._grid[point] = None
+
+            # unapply hash
+            self._hash ^= zobrist.HASH_CODE[point, string.color]
     
     # board utils
     def is_on_grid(self, point):
@@ -106,6 +114,9 @@ class Board():
             self.num_rows == other.num_rows and \
                 self.num_cols == other.num_cols and \
                     self._grid == other._grid
+    
+    def zobrist_hash(self):
+        return self._hash
 
 class Move():
     def __init__(self, point=None, is_pass=False, is_resign=False):
@@ -132,6 +143,11 @@ class GameState():
         self.board = board
         self.next_player = next_player
         self.previous_state = previous_state
+        if self.previous_state is None:
+            self.previous_states = frozenset()
+        else:
+            self.previous_states = frozenset(previous_state.previous_states) | \
+                set((previous_state.next_player, previous_state.board.zobrist_hash()))
         self.last_move = last_move
     
     def apply_move(self, move):
@@ -172,13 +188,8 @@ class GameState():
             return False
         next_board = copy.deepcopy(self.board)
         next_board.place_stone(player, move.point)
-        previous_state = self.previous_state
-        # cannot recreate a previous game state
-        while previous_state:
-            if previous_state.next_player == self.next_player and previous_state.board == self.board:
-                return True
-            previous_state = previous_state.previous_state
-        return False
+        next_situation = (player, next_board.zobrist_hash())
+        return next_situation in self.previous_states
     
     def is_valid_move(self, move):
         if self.is_over():
