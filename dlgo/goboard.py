@@ -170,9 +170,9 @@ class GameState():
             return False
         if self.last_move.is_resign:
             return True
-        second_last_move = self.previous_state.last_move
-        if second_last_move is None:
+        if self.previous_state is None or self.previous_state.last_move is None:
             return False
+        second_last_move = self.previous_state.last_move
         return self.last_move.is_pass and second_last_move.is_pass
 
     def is_move_self_capture(self, player, move):
