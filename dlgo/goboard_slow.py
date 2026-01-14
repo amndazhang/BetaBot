@@ -66,13 +66,13 @@ class Board():
 
         new_string = GoString(color, {point}, liberties)
 
-        # same color neighbors
+        # same color neighbors merge strs
         for same_color_string in adjacent_same_color:  # merge adj strings of same color
             new_string = new_string.merged_with(same_color_string)
         for new_point in new_string.stones:
             self._grid[new_point] = new_string
         
-        # opp color neighbors
+        # opp color neighbors remove liberties
         for opp_color_string in adjacent_opp_color:  # reduce liberty of adj opp color string
             if point in opp_color_string.liberties:  # Only remove if the liberty exists
                 opp_color_string.remove_liberty(point)
@@ -111,7 +111,7 @@ class Move():
     def __init__(self, point=None, is_pass=False, is_resign=False):
         assert (point is not None) ^ is_pass ^ is_resign
         self.point = point
-        self.is_play = (self.point is not None)
+        self.is_play = self.point is not None
         self.is_pass = is_pass
         self.is_resign = is_resign
 
@@ -144,8 +144,8 @@ class GameState():
     
     @classmethod
     def new_game(cls, board_size):
-        if isinstance(board_size, int):
-            board_size = (board_size, board_size)
+        assert isinstance(board_size, int) == True
+        board_size = (board_size, board_size)
         board = Board(*board_size)
         return GameState(board, Player.black, None, None)
 
@@ -159,7 +159,7 @@ class GameState():
             return False
         return self.last_move.is_pass and second_last_move.is_pass
 
-    def is_move_self_capture(self, player, move):
+    def is_move_self_capture(self, player, move): # lose all liberties
         if not move.is_play:
             return False
         next_board = copy.deepcopy(self.board)
@@ -172,12 +172,12 @@ class GameState():
             return False
         next_board = copy.deepcopy(self.board)
         next_board.place_stone(player, move.point)
-        previous_state = self.previous_state
-        # cannot recreate a previous game state
-        while previous_state:
-            if previous_state.next_player == self.next_player and previous_state.board == self.board:
+        next_situation = (player.other, next_board)
+        past_state = self.previous_state
+        while past_state is not None:
+            if past_state.situation == next_situation:
                 return True
-            previous_state = previous_state.previous_state
+            past_state = past_state.previous_state
         return False
     
     def is_valid_move(self, move):

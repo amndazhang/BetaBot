@@ -9,7 +9,7 @@ class Player(enum.Enum):
     def other(self):
         return Player.black if self == Player.white else Player.white
     
-class Point(namedtuple('Point', 'row col')):
+class Point(namedtuple('Point', 'row col')): # ('row', 'col')
     def neighbors(self):
         return [
             Point(self.row - 1, self.col),
